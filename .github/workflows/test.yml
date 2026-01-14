@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  push:
+    branches: main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v5
+        with:
+          path: .build
+          key: ${{ runner.os }}-swiftpm-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swiftpm-
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Test
+        run: swift test --xunit-output output.xml --parallel
+
+      - name: Upload artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results
+          path: |
+            output.xml
+            output-swift-testing.xml
+          if-no-files-found: ignore
