@@ -5,6 +5,14 @@ on:
     branches: main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  checks: write
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -35,3 +43,19 @@ jobs:
             output.xml
             output-swift-testing.xml
           if-no-files-found: ignore
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: latest
+
+      - name: Merge test results
+        run: |
+          npm install -g junit-report-merger
+          jrm merged.xml "./**/*.xml"
+
+      - name: Publish test reports
+        uses: mikepenz/action-junit-report@v6
+        if: ${{ !cancelled() }}
+        with:
+          report_paths: |
+            merged.xml
