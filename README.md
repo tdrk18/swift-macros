@@ -10,7 +10,7 @@ A collection of Swift macros for URL creation, initializer generation, mocks, an
 Add the package to `Package.swift`.
 
 ```swift
-.package(url: "https://github.com/tdrk18/swift-macros.git", from: "0.1.0"),
+.package(url: "https://github.com/tdrk18/swift-macros.git", from: "1.0.0"),
 ```
 
 ```swift
