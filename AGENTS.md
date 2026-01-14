@@ -11,13 +11,15 @@
 - `swift build` builds all targets in the package.
 - `swift test` runs the XCTest suite in `Tests/MacroTests`.
 - `swift test -v` provides verbose output when debugging failures.
+- `swift format lint --recursive .` runs swift-format lint (used by CI).
+- `swift format --recursive .` formats code in-place to match swift-format rules.
 
 ## Coding Style & Naming Conventions
 - Use standard Swift formatting (4-space indentation, no tabs).
 - Types and macros use PascalCase (for example, `FileURL`, `Mockable`).
 - Macro implementation files end in `Macro.swift` (for example, `FileURLMacro.swift`).
 - Keep helper types in `Sources/MacroImplements/Support` and name them descriptively.
-- No formatter or linter is configured; keep changes consistent with existing code.
+- CI enforces `swift-format` linting; format locally with `swift format`.
 
 ## Testing Guidelines
 - Tests use XCTest via SwiftPM.
@@ -29,6 +31,7 @@
 - Commit messages currently use short, imperative summaries (for example, "Add macros").
 - PRs should include a brief description, test results (`swift test`), and any new macro examples.
 - Link related issues if applicable.
+ - CI runs `test.yml` (Swift tests) and `lint.yml` (swift-format lint).
 
 ## Configuration Notes
 - The package depends on `apple/swift-syntax` (see `Package.swift`).

@@ -68,6 +68,12 @@ struct User {
 ## Development
 - `swift build`: Build the package
 - `swift test`: Run tests
+- `swift format lint --recursive .`: Run swift-format lint (matches CI)
+- `swift format --recursive .`: Auto-format code with swift-format
+
+## CI & Formatting
+- GitHub Actions runs `test.yml` for `swift test` and `lint.yml` for swift-format linting.
+- Install swift-format locally with Homebrew: `brew install swift-format`.
 
 ## Project Structure
 - `Sources/Macro`: Public API (macro declarations)
