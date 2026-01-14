@@ -4,3 +4,5 @@
 DerivedData/
 *.xcodeproj
 *.xcworkspace
+output-swift-testing.xml
+output.xml
