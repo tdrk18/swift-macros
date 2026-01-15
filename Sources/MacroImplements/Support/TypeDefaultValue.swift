@@ -28,8 +28,7 @@ enum TypeDefaultValue {
             }
         }
 
-        // Fail safe: let unsupported types surface compile errors.
-        return "\(type.normalizedDescription)()"
+        return "\(type.normalizedDescription).stub()"
     }
 
     private static func defaultValue(for kind: GenericContainerKind) -> String {
