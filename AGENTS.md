@@ -35,4 +35,4 @@
 
 ## Configuration Notes
 - The package depends on `apple/swift-syntax` (see `Package.swift`).
-- Minimum platform is macOS 10.15.
+- Minimum platforms are macOS 10.15 and iOS 17.
