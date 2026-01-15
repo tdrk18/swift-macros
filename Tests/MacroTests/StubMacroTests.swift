@@ -361,4 +361,30 @@ final class StubMacroTests: XCTestCase {
             macros: macros,
         )
     }
+
+    func testStubMacroWithNonPrimitiveType() {
+        assertMacroExpansion(
+            """
+            @Stub
+            struct User {
+                let id: ID
+            }
+            """,
+            expandedSource:
+                """
+                struct User {
+                    let id: ID
+
+                    static func stub(
+                        id: ID = ID.stub()
+                    ) -> Self {
+                        Self(
+                            id: id
+                        )
+                    }
+                }
+                """,
+            macros: macros,
+        )
+    }
 }
