@@ -1,10 +1,11 @@
 # swift-macros
 
-A collection of Swift macros for URL creation, initializer generation, mocks, and stubs.
+A collection of Swift macros for URL creation, initializer generation, mocks, and stubs. Supports macOS and iOS targets.
 
 ## Requirements
 - Swift 6.2+ (SwiftPM)
 - macOS 10.15+
+- iOS 17+
 
 ## Installation (SwiftPM)
 Add the package to `Package.swift`.
