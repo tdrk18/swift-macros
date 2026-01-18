@@ -9,6 +9,21 @@ public struct MockableMacro: PeerMacro {
         let whereClause: GenericWhereClauseSyntax?
     }
 
+    private final class GenericParameterRewriter: SyntaxRewriter {
+        let replacements: [String: TypeSyntax]
+
+        init(replacements: [String: TypeSyntax]) {
+            self.replacements = replacements
+        }
+
+        override func visit(_ node: IdentifierTypeSyntax) -> TypeSyntax {
+            if let replacement = replacements[node.name.text] {
+                return replacement
+            }
+            return TypeSyntax(node)
+        }
+    }
+
     public static func expansion(
         of attribute: AttributeSyntax,
         providingPeersOf decl: some DeclSyntaxProtocol,
@@ -69,7 +84,13 @@ public struct MockableMacro: PeerMacro {
         let name = funcDecl.name.text
         let params = funcDecl.signature.parameterClause.parameters
         let resolvedParams = params.resolvedParams()
-        let receivedArgumentsType = receivedArgumentsType(from: resolvedParams)
+        let genericReplacements = genericParameterReplacements(from: funcDecl)
+        let storageParams = resolvedParams.map {
+            ResolvedParam(
+                value: $0.value,
+                type: replacedType($0.type, replacements: genericReplacements)
+            )
+        }
         let hasThrows = funcDecl.signature.effectSpecifiers?.throwsClause?.throwsSpecifier != nil
         let isAsync = funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil
         let returnTypeSyntax = funcDecl.signature.returnClause?.type
@@ -93,15 +114,15 @@ public struct MockableMacro: PeerMacro {
                 VariableDeclSyntax(
                     bindingSpecifier: .keyword(.var),
                     bindings: PatternBindingListSyntax {
-                        PatternBindingSyntax(
-                            pattern: IdentifierPatternSyntax(identifier: .identifier("\(name)ReceivedArguments")),
-                            typeAnnotation: TypeAnnotationSyntax(
-                                type: receivedArgumentsType
-                            ),
-                            initializer: InitializerClauseSyntax(
-                                value: ArrayExprSyntax(elements: ArrayElementListSyntax())
-                            )
+                    PatternBindingSyntax(
+                        pattern: IdentifierPatternSyntax(identifier: .identifier("\(name)ReceivedArguments")),
+                        typeAnnotation: TypeAnnotationSyntax(
+                            type: receivedArgumentsType(from: storageParams)
+                        ),
+                        initializer: InitializerClauseSyntax(
+                            value: ArrayExprSyntax(elements: ArrayElementListSyntax())
                         )
+                    )
                     }
                 )
             )
@@ -130,7 +151,7 @@ public struct MockableMacro: PeerMacro {
         if let returnTypeSyntax {
             let isOptionalReturn = returnTypeSyntax.isOptionalType
             let handlerType = handlerType(
-                params: resolvedParams,
+                params: storageParams,
                 isAsync: isAsync,
                 returnType: returnTypeSyntax
             )
@@ -261,11 +282,13 @@ public struct MockableMacro: PeerMacro {
             effectSpecifiers: funcDecl.signature.effectSpecifiers,
             returnClause: funcDecl.signature.returnClause
         )
-        let functionDecl = FunctionDeclSyntax(
+        var functionDecl = FunctionDeclSyntax(
             name: funcDecl.name,
             signature: signature,
             body: body
         )
+        functionDecl = functionDecl.with(\.genericParameterClause, funcDecl.genericParameterClause)
+        functionDecl = functionDecl.with(\.genericWhereClause, funcDecl.genericWhereClause)
 
         return declSyntaxes + [DeclSyntax(functionDecl)]
     }
@@ -274,6 +297,76 @@ public struct MockableMacro: PeerMacro {
         let tupleType = TupleTypeSyntax(elements: receivedArgumentsTupleTypeElements(from: params))
         let arrayType = ArrayTypeSyntax(element: TypeSyntax(tupleType))
         return TypeSyntax(arrayType)
+    }
+
+    private static func genericParameterReplacements(
+        from funcDecl: FunctionDeclSyntax
+    ) -> [String: TypeSyntax] {
+        guard let genericClause = funcDecl.genericParameterClause else {
+            return [:]
+        }
+
+        var inheritedConstraints: [String: [TypeSyntax]] = [:]
+        for param in genericClause.parameters {
+            guard let inheritedType = param.inheritedType else {
+                continue
+            }
+            inheritedConstraints[param.name.text, default: []].append(inheritedType)
+        }
+
+        var sameTypeConstraints: [String: TypeSyntax] = [:]
+        if let whereClause = funcDecl.genericWhereClause {
+            for requirement in whereClause.requirements {
+                switch requirement.requirement {
+                case .conformanceRequirement(let conformance):
+                    if let leftIdentifier = conformance.leftType.as(IdentifierTypeSyntax.self) {
+                        inheritedConstraints[leftIdentifier.name.text, default: []].append(
+                            conformance.rightType
+                        )
+                    }
+                case .sameTypeRequirement(let sameType):
+                    if let leftIdentifier = sameType.leftType.as(IdentifierTypeSyntax.self) {
+                        sameTypeConstraints[leftIdentifier.name.text] = TypeSyntax(sameType.rightType)
+                    } else if let rightIdentifier = sameType.rightType.as(IdentifierTypeSyntax.self) {
+                        sameTypeConstraints[rightIdentifier.name.text] = TypeSyntax(sameType.leftType)
+                    }
+                default:
+                    continue
+                }
+            }
+        }
+
+        var replacements: [String: TypeSyntax] = [:]
+        for param in genericClause.parameters {
+            let name = param.name.text
+            if let sameType = sameTypeConstraints[name] {
+                replacements[name] = sameType
+                continue
+            }
+
+            let constraints = inheritedConstraints[name] ?? []
+            if constraints.isEmpty {
+                replacements[name] = TypeSyntax(stringLiteral: "Any")
+                continue
+            }
+
+            let constraintNames = constraints.map { $0.normalizedDescription }.joined(separator: " & ")
+            replacements[name] = TypeSyntax(stringLiteral: "any \(constraintNames)")
+        }
+
+        return replacements
+    }
+
+    private static func replacedType(
+        _ type: TypeSyntax,
+        replacements: [String: TypeSyntax]
+    ) -> TypeSyntax {
+        guard !replacements.isEmpty else {
+            return type
+        }
+        let rewriter = GenericParameterRewriter(replacements: replacements)
+        let rewritten = rewriter.rewrite(Syntax(type))
+        return rewritten.as(TypeSyntax.self) ?? type
     }
 
     private static func associatedTypeInfos(

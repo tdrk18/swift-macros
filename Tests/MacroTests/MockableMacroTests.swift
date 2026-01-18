@@ -227,4 +227,36 @@ final class MockableMacroTests: XCTestCase {
         )
     }
 
+    func testProtocolWithGenerics() {
+        assertMacroExpansion(
+            """
+            @Mockable
+            protocol Cache {
+                func get<Key: Hashable>(key: Key) -> String
+            }
+            """,
+            expandedSource:
+                """
+                protocol Cache {
+                    func get<Key: Hashable>(key: Key) -> String
+                }
+
+                final class MockCache: Cache, @unchecked Sendable {
+                    var getCallCount = 0
+                    var getReceivedArguments: [(any Hashable)] = []
+                    var getHandler: ((any Hashable) -> String)? = nil
+                    var getReturnValue: String!
+                    func get<Key: Hashable>(key: Key) -> String {
+                        getCallCount += 1
+                        getReceivedArguments.append((key))
+                        if let handler = getHandler {
+                            return handler(key)
+                        }
+                        return getReturnValue
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
 }
