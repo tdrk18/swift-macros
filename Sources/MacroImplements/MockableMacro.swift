@@ -3,6 +3,11 @@ import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 public struct MockableMacro: PeerMacro {
+    private struct AssociatedTypeInfo {
+        let name: String
+        let inheritedTypes: InheritedTypeListSyntax?
+        let whereClause: GenericWhereClauseSyntax?
+    }
 
     public static func expansion(
         of attribute: AttributeSyntax,
@@ -32,17 +37,20 @@ public struct MockableMacro: PeerMacro {
             },
             baseType: IdentifierTypeSyntax(name: .identifier("Sendable"))
         )
+        let associatedTypes = associatedTypeInfos(from: protocolDecl)
         let classDecl = ClassDeclSyntax(
             modifiers: DeclModifierListSyntax {
                 DeclModifierSyntax(name: .keyword(.final))
             },
             name: .identifier(mockName),
+            genericParameterClause: genericParameterClause(from: associatedTypes),
             inheritanceClause: InheritanceClauseSyntax(
                 inheritedTypes: InheritedTypeListSyntax {
                     InheritedTypeSyntax(type: TypeSyntax(IdentifierTypeSyntax(name: .identifier(protocolName))))
                     InheritedTypeSyntax(type: TypeSyntax(uncheckedSendableType))
                 }
             ),
+            genericWhereClause: genericWhereClause(from: associatedTypes),
             memberBlock: MemberBlockSyntax(
                 members: MemberBlockItemListSyntax(
                     members.map { MemberBlockItemSyntax(decl: $0) }
@@ -266,6 +274,108 @@ public struct MockableMacro: PeerMacro {
         let tupleType = TupleTypeSyntax(elements: receivedArgumentsTupleTypeElements(from: params))
         let arrayType = ArrayTypeSyntax(element: TypeSyntax(tupleType))
         return TypeSyntax(arrayType)
+    }
+
+    private static func associatedTypeInfos(
+        from protocolDecl: ProtocolDeclSyntax
+    ) -> [AssociatedTypeInfo] {
+        var infos: [AssociatedTypeInfo] = []
+        var seen = Set<String>()
+
+        for member in protocolDecl.memberBlock.members {
+            guard let associatedType = member.decl.as(AssociatedTypeDeclSyntax.self) else {
+                continue
+            }
+            let name = associatedType.name.text
+            guard seen.insert(name).inserted else {
+                continue
+            }
+            infos.append(
+                AssociatedTypeInfo(
+                    name: name,
+                    inheritedTypes: associatedType.inheritanceClause?.inheritedTypes,
+                    whereClause: associatedType.genericWhereClause
+                )
+            )
+        }
+
+        return infos
+    }
+
+    private static func genericParameterClause(
+        from associatedTypes: [AssociatedTypeInfo]
+    ) -> GenericParameterClauseSyntax? {
+        guard !associatedTypes.isEmpty else {
+            return nil
+        }
+
+        let parameters = GenericParameterListSyntax(
+            associatedTypes.enumerated().map { index, info in
+                var parameter = GenericParameterSyntax(name: .identifier(info.name))
+                if index < associatedTypes.count - 1 {
+                    parameter = parameter.with(\.trailingComma, .commaToken())
+                }
+                return parameter
+            }
+        )
+        return GenericParameterClauseSyntax(
+            leftAngle: .leftAngleToken(),
+            parameters: parameters,
+            rightAngle: .rightAngleToken()
+        )
+    }
+
+    private static func genericWhereClause(
+        from associatedTypes: [AssociatedTypeInfo]
+    ) -> GenericWhereClauseSyntax? {
+        var requirements: [GenericRequirementSyntax] = []
+
+        for info in associatedTypes {
+            if let inheritedTypes = info.inheritedTypes {
+                for inheritedType in inheritedTypes {
+                    let leftType = TypeSyntax(
+                        IdentifierTypeSyntax(name: .identifier(info.name))
+                    )
+                    let requirement = GenericRequirementSyntax(
+                        requirement: .conformanceRequirement(
+                            ConformanceRequirementSyntax(
+                                leftTypeIdentifier: leftType,
+                                colon: .colonToken(),
+                                rightTypeIdentifier: inheritedType.type
+                            )
+                        )
+                    )
+                    requirements.append(requirement)
+                }
+            }
+
+            if let whereClause = info.whereClause {
+                requirements.append(
+                    contentsOf: whereClause.requirementList.map {
+                        $0.with(\.trailingComma, nil)
+                    }
+                )
+            }
+        }
+
+        guard !requirements.isEmpty else {
+            return nil
+        }
+
+        let requirementList = GenericRequirementListSyntax(
+            requirements.enumerated().map { index, requirement in
+                var item = requirement
+                if index < requirements.count - 1 {
+                    item = item.with(\.trailingComma, .commaToken())
+                }
+                return item
+            }
+        )
+
+        return GenericWhereClauseSyntax(
+            whereKeyword: .keyword(.where),
+            requirementList: requirementList
+        )
     }
 
     private static func handlerType(

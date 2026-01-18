@@ -161,4 +161,41 @@ final class MockableMacroTests: XCTestCase {
         )
     }
 
+    func testProtocolWithAssociatedTypes() {
+        assertMacroExpansion(
+            """
+            @Mockable
+            protocol Cache {
+                associatedtype Key: Hashable
+                associatedtype Value
+                func get(key: Key) -> Value
+            }
+            """,
+            expandedSource:
+                """
+                protocol Cache {
+                    associatedtype Key: Hashable
+                    associatedtype Value
+                    func get(key: Key) -> Value
+                }
+
+                final class MockCache<Key, Value>: Cache, @unchecked Sendable where Key: Hashable {
+                    var getCallCount = 0
+                    var getReceivedArguments: [(Key)] = []
+                    var getHandler: ((Key) -> Value)? = nil
+                    var getReturnValue: Value!
+                    func get(key: Key) -> Value {
+                        getCallCount += 1
+                        getReceivedArguments.append((key))
+                        if let handler = getHandler {
+                            return handler(key)
+                        }
+                        return getReturnValue
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
+
 }
