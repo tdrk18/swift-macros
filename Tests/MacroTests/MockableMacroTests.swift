@@ -307,8 +307,8 @@ final class MockableMacroTests: XCTestCase {
 
                 final class MockBoxFactory: BoxFactory, @unchecked Sendable {
                     var makeCallCount = 0
-                    var makeHandler: (() -> any Hashable)? = nil
-                    var makeReturnValue: any Hashable!
+                    var makeHandler: (() -> Any)? = nil
+                    var makeReturnValue: Any!
                     func make<T: Hashable>() -> T {
                         makeCallCount += 1
                         if let handler = makeHandler {
@@ -486,8 +486,8 @@ final class MockableMacroTests: XCTestCase {
 
                 final class MockService: Service, @unchecked Sendable {
                     var fetchCallCount = 0
-                    var fetchHandler: (() -> Result<Any, NSError>)? = nil
-                    var fetchReturnValue: Result<Any, NSError>!
+                    var fetchHandler: (() -> Any)? = nil
+                    var fetchReturnValue: Any!
                     func fetch<T: ResponseProvider>() -> Result<T.Response, NSError> {
                         fetchCallCount += 1
                         if let handler = fetchHandler {
@@ -524,8 +524,8 @@ final class MockableMacroTests: XCTestCase {
 
                 final class MockService: Service, @unchecked Sendable {
                     var fetchCallCount = 0
-                    var fetchHandler: (() -> Result<Any, Error>)? = nil
-                    var fetchReturnValue: Result<Any, Error>!
+                    var fetchHandler: (() -> Any)? = nil
+                    var fetchReturnValue: Any!
                     func fetch<T: ResponseProvider>() -> Result<T.Response, Error> {
                         fetchCallCount += 1
                         if let handler = fetchHandler {
@@ -562,8 +562,8 @@ final class MockableMacroTests: XCTestCase {
 
                 final class MockService: Service, @unchecked Sendable {
                     var fetchCallCount = 0
-                    var fetchHandler: (() -> Result<Any?, NSError>)? = nil
-                    var fetchReturnValue: Result<Any?, NSError>!
+                    var fetchHandler: (() -> Any)? = nil
+                    var fetchReturnValue: Any!
                     func fetch<T: ResponseProvider>() -> Result<T.Response?, NSError> {
                         fetchCallCount += 1
                         if let handler = fetchHandler {

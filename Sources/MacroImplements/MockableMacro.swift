@@ -200,10 +200,13 @@ public struct MockableMacro: PeerMacro {
 
         if let returnTypeSyntax {
             let isOptionalReturn = returnTypeSyntax.isOptionalType
+            let erasedReturnType = usesGenericReturn
+                ? TypeSyntax(stringLiteral: isOptionalReturn ? "Any?" : "Any")
+                : nil
             let handlerType = handlerType(
                 params: storageParams,
                 isAsync: isAsync,
-                returnType: storageReturnType ?? returnTypeSyntax
+                returnType: erasedReturnType ?? storageReturnType ?? returnTypeSyntax
             )
             let handlerOptionalType = TypeSyntax(
                 stringLiteral: "(\(handlerType.description))?"
@@ -225,7 +228,7 @@ public struct MockableMacro: PeerMacro {
                 )
             )
 
-            let returnValueBaseType = storageReturnType ?? returnTypeSyntax
+            let returnValueBaseType = erasedReturnType ?? storageReturnType ?? returnTypeSyntax
             let returnValueType =
                 isOptionalReturn
                 ? returnValueBaseType
