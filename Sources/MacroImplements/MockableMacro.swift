@@ -274,7 +274,12 @@ public struct MockableMacro: PeerMacro {
             let handlerCallExpr = ExprSyntax(handlerCall)
             let handlerReturnExpr =
                 isAsync
-                ? ExprSyntax(AwaitExprSyntax(expression: handlerCallExpr))
+                ? ExprSyntax(
+                    AwaitExprSyntax(
+                        awaitKeyword: .keyword(.await, trailingTrivia: .spaces(1)),
+                        expression: handlerCallExpr
+                    )
+                )
                 : handlerCallExpr
             let handlerReturnValue = usesGenericReturn
                 ? castExpr(handlerReturnExpr, to: returnTypeSyntax)

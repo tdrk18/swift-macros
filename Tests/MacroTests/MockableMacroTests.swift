@@ -352,4 +352,35 @@ final class MockableMacroTests: XCTestCase {
             macros: macros
         )
     }
+
+    func testAsyncHandlerAwaitSpacing() {
+        assertMacroExpansion(
+            """
+            @Mockable
+            protocol Loader {
+                func load() async -> String
+            }
+            """,
+            expandedSource:
+                """
+                protocol Loader {
+                    func load() async -> String
+                }
+
+                final class MockLoader: Loader, @unchecked Sendable {
+                    var loadCallCount = 0
+                    var loadHandler: (() async -> String)? = nil
+                    var loadReturnValue: String!
+                    func load() async -> String {
+                        loadCallCount += 1
+                        if let handler = loadHandler {
+                            return await handler()
+                        }
+                        return loadReturnValue
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
 }
