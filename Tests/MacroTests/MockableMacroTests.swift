@@ -290,4 +290,66 @@ final class MockableMacroTests: XCTestCase {
             macros: macros
         )
     }
+
+    func testMethodGenericReturnTypeWithConstraint() {
+        assertMacroExpansion(
+            """
+            @Mockable
+            protocol BoxFactory {
+                func make<T: Hashable>() -> T
+            }
+            """,
+            expandedSource:
+                """
+                protocol BoxFactory {
+                    func make<T: Hashable>() -> T
+                }
+
+                final class MockBoxFactory: BoxFactory, @unchecked Sendable {
+                    var makeCallCount = 0
+                    var makeHandler: (() -> any Hashable)? = nil
+                    var makeReturnValue: any Hashable!
+                    func make<T: Hashable>() -> T {
+                        makeCallCount += 1
+                        if let handler = makeHandler {
+                            return (handler()) as! T
+                        }
+                        return (makeReturnValue) as! T
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
+
+    func testMethodGenericOptionalReturnType() {
+        assertMacroExpansion(
+            """
+            @Mockable
+            protocol OptionalFactory {
+                func make<T>() -> T?
+            }
+            """,
+            expandedSource:
+                """
+                protocol OptionalFactory {
+                    func make<T>() -> T?
+                }
+
+                final class MockOptionalFactory: OptionalFactory, @unchecked Sendable {
+                    var makeCallCount = 0
+                    var makeHandler: (() -> Any?)? = nil
+                    var makeReturnValue: Any? = nil
+                    func make<T>() -> T? {
+                        makeCallCount += 1
+                        if let handler = makeHandler {
+                            return (handler()) as! T?
+                        }
+                        return (makeReturnValue) as! T?
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
 }
