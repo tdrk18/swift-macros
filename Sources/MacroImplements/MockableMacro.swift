@@ -339,9 +339,9 @@ public struct MockableMacro: PeerMacro {
                     let requirement = GenericRequirementSyntax(
                         requirement: .conformanceRequirement(
                             ConformanceRequirementSyntax(
-                                leftTypeIdentifier: leftType,
+                                leftType: leftType,
                                 colon: .colonToken(),
-                                rightTypeIdentifier: inheritedType.type
+                                rightType: inheritedType.type
                             )
                         )
                     )
@@ -351,7 +351,7 @@ public struct MockableMacro: PeerMacro {
 
             if let whereClause = info.whereClause {
                 requirements.append(
-                    contentsOf: whereClause.requirementList.map {
+                    contentsOf: whereClause.requirements.map {
                         $0.with(\.trailingComma, nil)
                     }
                 )
@@ -374,7 +374,7 @@ public struct MockableMacro: PeerMacro {
 
         return GenericWhereClauseSyntax(
             whereKeyword: .keyword(.where),
-            requirementList: requirementList
+            requirements: requirementList
         )
     }
 
