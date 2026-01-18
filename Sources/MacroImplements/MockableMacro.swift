@@ -22,14 +22,14 @@ public struct MockableMacro: PeerMacro {
             if let replacement = replacements[node.name.text] {
                 return replacement
             }
-            return TypeSyntax(node)
+            return TypeSyntax(super.visit(node))
         }
 
         override func visit(_ node: MemberTypeSyntax) -> TypeSyntax {
             if memberTypeUsesGenericBase(node) {
                 return TypeSyntax(stringLiteral: "Any")
             }
-            return TypeSyntax(node)
+            return TypeSyntax(super.visit(node))
         }
 
         private func memberTypeUsesGenericBase(_ node: MemberTypeSyntax) -> Bool {

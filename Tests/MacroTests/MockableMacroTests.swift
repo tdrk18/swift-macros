@@ -463,6 +463,120 @@ final class MockableMacroTests: XCTestCase {
         )
     }
 
+    func testMethodGenericAssociatedTypeInResultReturn() {
+        assertMacroExpansion(
+            """
+            protocol ResponseProvider {
+                associatedtype Response
+            }
+
+            @Mockable
+            protocol Service {
+                func fetch<T: ResponseProvider>() -> Result<T.Response, NSError>
+            }
+            """,
+            expandedSource:
+                """
+                protocol ResponseProvider {
+                    associatedtype Response
+                }
+                protocol Service {
+                    func fetch<T: ResponseProvider>() -> Result<T.Response, NSError>
+                }
+
+                final class MockService: Service, @unchecked Sendable {
+                    var fetchCallCount = 0
+                    var fetchHandler: (() -> Result<Any, NSError>)? = nil
+                    var fetchReturnValue: Result<Any, NSError>!
+                    func fetch<T: ResponseProvider>() -> Result<T.Response, NSError> {
+                        fetchCallCount += 1
+                        if let handler = fetchHandler {
+                            return (handler()) as! Result<T.Response, NSError>
+                        }
+                        return (fetchReturnValue) as! Result<T.Response, NSError>
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
+
+    func testMethodGenericAssociatedTypeInResultReturnWithError() {
+        assertMacroExpansion(
+            """
+            protocol ResponseProvider {
+                associatedtype Response
+            }
+
+            @Mockable
+            protocol Service {
+                func fetch<T: ResponseProvider>() -> Result<T.Response, Error>
+            }
+            """,
+            expandedSource:
+                """
+                protocol ResponseProvider {
+                    associatedtype Response
+                }
+                protocol Service {
+                    func fetch<T: ResponseProvider>() -> Result<T.Response, Error>
+                }
+
+                final class MockService: Service, @unchecked Sendable {
+                    var fetchCallCount = 0
+                    var fetchHandler: (() -> Result<Any, Error>)? = nil
+                    var fetchReturnValue: Result<Any, Error>!
+                    func fetch<T: ResponseProvider>() -> Result<T.Response, Error> {
+                        fetchCallCount += 1
+                        if let handler = fetchHandler {
+                            return (handler()) as! Result<T.Response, Error>
+                        }
+                        return (fetchReturnValue) as! Result<T.Response, Error>
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
+
+    func testMethodGenericAssociatedTypeInResultOptionalReturn() {
+        assertMacroExpansion(
+            """
+            protocol ResponseProvider {
+                associatedtype Response
+            }
+
+            @Mockable
+            protocol Service {
+                func fetch<T: ResponseProvider>() -> Result<T.Response?, NSError>
+            }
+            """,
+            expandedSource:
+                """
+                protocol ResponseProvider {
+                    associatedtype Response
+                }
+                protocol Service {
+                    func fetch<T: ResponseProvider>() -> Result<T.Response?, NSError>
+                }
+
+                final class MockService: Service, @unchecked Sendable {
+                    var fetchCallCount = 0
+                    var fetchHandler: (() -> Result<Any?, NSError>)? = nil
+                    var fetchReturnValue: Result<Any?, NSError>!
+                    func fetch<T: ResponseProvider>() -> Result<T.Response?, NSError> {
+                        fetchCallCount += 1
+                        if let handler = fetchHandler {
+                            return (handler()) as! Result<T.Response?, NSError>
+                        }
+                        return (fetchReturnValue) as! Result<T.Response?, NSError>
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
+
     func testAsyncHandlerAwaitSpacing() {
         assertMacroExpansion(
             """
