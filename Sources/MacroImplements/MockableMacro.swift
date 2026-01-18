@@ -11,9 +11,11 @@ public struct MockableMacro: PeerMacro {
 
     private final class GenericParameterRewriter: SyntaxRewriter {
         let replacements: [String: TypeSyntax]
+        let genericNames: Set<String>
 
-        init(replacements: [String: TypeSyntax]) {
+        init(replacements: [String: TypeSyntax], genericNames: Set<String>) {
             self.replacements = replacements
+            self.genericNames = genericNames
         }
 
         override func visit(_ node: IdentifierTypeSyntax) -> TypeSyntax {
@@ -21,6 +23,27 @@ public struct MockableMacro: PeerMacro {
                 return replacement
             }
             return TypeSyntax(node)
+        }
+
+        override func visit(_ node: MemberTypeSyntax) -> TypeSyntax {
+            if memberTypeUsesGenericBase(node) {
+                return TypeSyntax(stringLiteral: "Any")
+            }
+            return TypeSyntax(node)
+        }
+
+        private func memberTypeUsesGenericBase(_ node: MemberTypeSyntax) -> Bool {
+            var current: TypeSyntax = node.baseType
+            while true {
+                if let identifier = current.as(IdentifierTypeSyntax.self) {
+                    return genericNames.contains(identifier.name.text)
+                }
+                if let member = current.as(MemberTypeSyntax.self) {
+                    current = member.baseType
+                    continue
+                }
+                return false
+            }
         }
     }
 
@@ -101,17 +124,17 @@ public struct MockableMacro: PeerMacro {
 
         let name = funcDecl.name.text
         let params = funcDecl.signature.parameterClause.parameters
+        let genericNames = Set(
+            funcDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
+        )
         let resolvedParams = params.resolvedParams()
         let genericReplacements = genericParameterReplacements(from: funcDecl)
         let storageParams = resolvedParams.map {
             ResolvedParam(
                 value: $0.value,
-                type: replacedType($0.type, replacements: genericReplacements)
+                type: replacedType($0.type, replacements: genericReplacements, genericNames: genericNames)
             )
         }
-        let genericNames = Set(
-            funcDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
-        )
         let hasThrows = funcDecl.signature.effectSpecifiers?.throwsClause?.throwsSpecifier != nil
         let isAsync = funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil
         let returnTypeSyntax = funcDecl.signature.returnClause?.type
@@ -119,7 +142,7 @@ public struct MockableMacro: PeerMacro {
             typeUsesGenericParam($0, names: genericNames)
         } ?? false
         let storageReturnType = returnTypeSyntax.map {
-            replacedType($0, replacements: genericReplacements)
+            replacedType($0, replacements: genericReplacements, genericNames: genericNames)
         }
 
         var decls: [VariableDeclSyntax] = [
@@ -411,12 +434,16 @@ public struct MockableMacro: PeerMacro {
 
     private static func replacedType(
         _ type: TypeSyntax,
-        replacements: [String: TypeSyntax]
+        replacements: [String: TypeSyntax],
+        genericNames: Set<String>
     ) -> TypeSyntax {
         guard !replacements.isEmpty else {
             return type
         }
-        let rewriter = GenericParameterRewriter(replacements: replacements)
+        let rewriter = GenericParameterRewriter(
+            replacements: replacements,
+            genericNames: genericNames
+        )
         let rewritten = rewriter.rewrite(Syntax(type))
         return rewritten.as(TypeSyntax.self) ?? type
     }
