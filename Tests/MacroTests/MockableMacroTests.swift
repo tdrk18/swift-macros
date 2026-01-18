@@ -198,4 +198,33 @@ final class MockableMacroTests: XCTestCase {
         )
     }
 
+    func testAssociatedTypeWhereClause() {
+        assertMacroExpansion(
+            """
+            @Mockable
+            protocol PayloadStore {
+                associatedtype Payload where Payload: Codable, Payload == String
+                func save(_ payload: Payload)
+            }
+            """,
+            expandedSource:
+                """
+                protocol PayloadStore {
+                    associatedtype Payload where Payload: Codable, Payload == String
+                    func save(_ payload: Payload)
+                }
+
+                final class MockPayloadStore<Payload>: PayloadStore, @unchecked Sendable where Payload: Codable, Payload == String {
+                    var saveCallCount = 0
+                    var saveReceivedArguments: [(Payload)] = []
+                    func save(_ payload: Payload) {
+                        saveCallCount += 1
+                        saveReceivedArguments.append((payload))
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
+
 }
