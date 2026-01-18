@@ -24,6 +24,24 @@ public struct MockableMacro: PeerMacro {
         }
     }
 
+    private final class GenericTypeUsageVisitor: SyntaxVisitor {
+        let names: Set<String>
+        private(set) var found = false
+
+        init(names: Set<String>) {
+            self.names = names
+            super.init(viewMode: .sourceAccurate)
+        }
+
+        override func visit(_ node: IdentifierTypeSyntax) -> SyntaxVisitorContinueKind {
+            if names.contains(node.name.text) {
+                found = true
+                return .skipChildren
+            }
+            return .visitChildren
+        }
+    }
+
     public static func expansion(
         of attribute: AttributeSyntax,
         providingPeersOf decl: some DeclSyntaxProtocol,
@@ -91,9 +109,18 @@ public struct MockableMacro: PeerMacro {
                 type: replacedType($0.type, replacements: genericReplacements)
             )
         }
+        let genericNames = Set(
+            funcDecl.genericParameterClause?.parameters.map { $0.name.text } ?? []
+        )
         let hasThrows = funcDecl.signature.effectSpecifiers?.throwsClause?.throwsSpecifier != nil
         let isAsync = funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil
         let returnTypeSyntax = funcDecl.signature.returnClause?.type
+        let usesGenericReturn = returnTypeSyntax.map {
+            typeUsesGenericParam($0, names: genericNames)
+        } ?? false
+        let storageReturnType = returnTypeSyntax.map {
+            replacedType($0, replacements: genericReplacements)
+        }
 
         var decls: [VariableDeclSyntax] = [
             VariableDeclSyntax(
@@ -153,7 +180,7 @@ public struct MockableMacro: PeerMacro {
             let handlerType = handlerType(
                 params: storageParams,
                 isAsync: isAsync,
-                returnType: returnTypeSyntax
+                returnType: storageReturnType ?? returnTypeSyntax
             )
             let handlerOptionalType = TypeSyntax(
                 stringLiteral: "(\(handlerType.description))?"
@@ -175,12 +202,13 @@ public struct MockableMacro: PeerMacro {
                 )
             )
 
+            let returnValueBaseType = storageReturnType ?? returnTypeSyntax
             let returnValueType =
                 isOptionalReturn
-                ? returnTypeSyntax
+                ? returnValueBaseType
                 : TypeSyntax(
                     ImplicitlyUnwrappedOptionalTypeSyntax(
-                        wrappedType: returnTypeSyntax
+                        wrappedType: returnValueBaseType
                     )
                 )
             decls.append(
@@ -248,6 +276,9 @@ public struct MockableMacro: PeerMacro {
                 isAsync
                 ? ExprSyntax(AwaitExprSyntax(expression: handlerCallExpr))
                 : handlerCallExpr
+            let handlerReturnValue = usesGenericReturn
+                ? castExpr(handlerReturnExpr, to: returnTypeSyntax)
+                : handlerReturnExpr
             bodyItems.append(
                 ifLetStatement(
                     bindingName: "handler",
@@ -257,19 +288,23 @@ public struct MockableMacro: PeerMacro {
                     bodyItems: [
                         statement(
                             ReturnStmtSyntax(
-                                expression: handlerReturnExpr
+                                expression: handlerReturnValue
                             )
                         )
                     ]
                 )
             )
 
+            let returnValueExpr = ExprSyntax(
+                DeclReferenceExprSyntax(baseName: .identifier("\(name)ReturnValue"))
+            )
+            let returnValue = usesGenericReturn
+                ? castExpr(returnValueExpr, to: returnTypeSyntax)
+                : returnValueExpr
             bodyItems.append(
                 statement(
                     ReturnStmtSyntax(
-                        expression: ExprSyntax(
-                            DeclReferenceExprSyntax(baseName: .identifier("\(name)ReturnValue"))
-                        )
+                        expression: returnValue
                     )
                 )
             )
@@ -297,6 +332,18 @@ public struct MockableMacro: PeerMacro {
         let tupleType = TupleTypeSyntax(elements: receivedArgumentsTupleTypeElements(from: params))
         let arrayType = ArrayTypeSyntax(element: TypeSyntax(tupleType))
         return TypeSyntax(arrayType)
+    }
+
+    private static func typeUsesGenericParam(
+        _ type: TypeSyntax,
+        names: Set<String>
+    ) -> Bool {
+        guard !names.isEmpty else {
+            return false
+        }
+        let visitor = GenericTypeUsageVisitor(names: names)
+        visitor.walk(type)
+        return visitor.found
     }
 
     private static func genericParameterReplacements(
@@ -367,6 +414,18 @@ public struct MockableMacro: PeerMacro {
         let rewriter = GenericParameterRewriter(replacements: replacements)
         let rewritten = rewriter.rewrite(Syntax(type))
         return rewritten.as(TypeSyntax.self) ?? type
+    }
+
+    private static func castExpr(
+        _ expr: ExprSyntax,
+        to returnType: TypeSyntax?
+    ) -> ExprSyntax {
+        guard let returnType else {
+            return expr
+        }
+        return ExprSyntax(
+            stringLiteral: "(\(expr.description)) as! \(returnType.description)"
+        )
     }
 
     private static func associatedTypeInfos(

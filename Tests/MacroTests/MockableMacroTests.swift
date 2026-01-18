@@ -259,4 +259,35 @@ final class MockableMacroTests: XCTestCase {
             macros: macros
         )
     }
+
+    func testMethodGenericReturnType() {
+        assertMacroExpansion(
+            """
+            @Mockable
+            protocol Factory {
+                func make<T>() -> T
+            }
+            """,
+            expandedSource:
+                """
+                protocol Factory {
+                    func make<T>() -> T
+                }
+
+                final class MockFactory: Factory, @unchecked Sendable {
+                    var makeCallCount = 0
+                    var makeHandler: (() -> Any)? = nil
+                    var makeReturnValue: Any!
+                    func make<T>() -> T {
+                        makeCallCount += 1
+                        if let handler = makeHandler {
+                            return (handler()) as! T
+                        }
+                        return (makeReturnValue) as! T
+                    }
+                }
+                """,
+            macros: macros
+        )
+    }
 }
