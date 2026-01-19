@@ -68,7 +68,7 @@ public struct MockableMacro: PeerMacro {
     public static func expansion(
         of attribute: AttributeSyntax,
         providingPeersOf decl: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
+        in context: some MacroExpansionContext,
     ) throws -> [DeclSyntax] {
 
         guard let protocolDecl = decl.as(ProtocolDeclSyntax.self) else {
@@ -91,7 +91,7 @@ public struct MockableMacro: PeerMacro {
             attributes: AttributeListSyntax {
                 AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("unchecked")))
             },
-            baseType: IdentifierTypeSyntax(name: .identifier("Sendable"))
+            baseType: IdentifierTypeSyntax(name: .identifier("Sendable")),
         )
         let associatedTypes = associatedTypeInfos(from: protocolDecl)
         let classDecl = ClassDeclSyntax(
@@ -111,7 +111,7 @@ public struct MockableMacro: PeerMacro {
                 members: MemberBlockItemListSyntax(
                     members.map { MemberBlockItemSyntax(decl: $0) }
                 )
-            )
+            ),
         )
 
         return [DeclSyntax(classDecl)]
@@ -154,7 +154,7 @@ public struct MockableMacro: PeerMacro {
                         pattern: IdentifierPatternSyntax(identifier: .identifier("\(name)CallCount")),
                         initializer: InitializerClauseSyntax(
                             value: IntegerLiteralExprSyntax(integerLiteral: 0)
-                        )
+                        ),
                     )
                 }
             )
@@ -192,7 +192,7 @@ public struct MockableMacro: PeerMacro {
                                         wrappedType: IdentifierTypeSyntax(name: .identifier("Error"))
                                     )
                                 )
-                            )
+                            ),
                         )
                     }
                 )
@@ -208,7 +208,7 @@ public struct MockableMacro: PeerMacro {
             let handlerType = handlerType(
                 params: storageParams,
                 isAsync: isAsync,
-                returnType: erasedReturnType ?? storageReturnType ?? returnTypeSyntax
+                returnType: erasedReturnType ?? storageReturnType ?? returnTypeSyntax,
             )
             let handlerOptionalType = TypeSyntax(
                 stringLiteral: "(\(handlerType.description))?"
@@ -226,7 +226,7 @@ public struct MockableMacro: PeerMacro {
                                 value: NilLiteralExprSyntax()
                             )
                         )
-                    }
+                    },
                 )
             )
 
@@ -250,9 +250,9 @@ public struct MockableMacro: PeerMacro {
                             ),
                             initializer: isOptionalReturn
                                 ? InitializerClauseSyntax(value: NilLiteralExprSyntax())
-                                : nil
+                                : nil,
                         )
-                    }
+                    },
                 )
             )
         }
@@ -265,7 +265,7 @@ public struct MockableMacro: PeerMacro {
             bodyItems.append(
                 appendReceivedArgumentsStatement(
                     receiverName: "\(name)ReceivedArguments",
-                    params: resolvedParams
+                    params: resolvedParams,
                 )
             )
         }
@@ -285,7 +285,7 @@ public struct MockableMacro: PeerMacro {
                                 )
                             )
                         )
-                    ]
+                    ],
                 )
             )
         }
@@ -297,7 +297,7 @@ public struct MockableMacro: PeerMacro {
                 ),
                 leftParen: .leftParenToken(),
                 arguments: handlerArgumentList(from: resolvedParams),
-                rightParen: .rightParenToken()
+                rightParen: .rightParenToken(),
             )
             let handlerCallExpr = ExprSyntax(handlerCall)
             let handlerReturnExpr =
@@ -305,7 +305,7 @@ public struct MockableMacro: PeerMacro {
                 ? ExprSyntax(
                     AwaitExprSyntax(
                         awaitKeyword: .keyword(.await, trailingTrivia: .spaces(1)),
-                        expression: handlerCallExpr
+                        expression: handlerCallExpr,
                     )
                 )
                 : handlerCallExpr
@@ -350,12 +350,12 @@ public struct MockableMacro: PeerMacro {
         let signature = FunctionSignatureSyntax(
             parameterClause: funcDecl.signature.parameterClause,
             effectSpecifiers: funcDecl.signature.effectSpecifiers,
-            returnClause: funcDecl.signature.returnClause
+            returnClause: funcDecl.signature.returnClause,
         )
         var functionDecl = FunctionDeclSyntax(
             name: funcDecl.name,
             signature: signature,
-            body: body
+            body: body,
         )
         functionDecl = functionDecl.with(\.genericParameterClause, funcDecl.genericParameterClause)
         functionDecl = functionDecl.with(\.genericWhereClause, funcDecl.genericWhereClause)
@@ -371,7 +371,7 @@ public struct MockableMacro: PeerMacro {
 
     private static func typeUsesGenericParam(
         _ type: TypeSyntax,
-        names: Set<String>
+        names: Set<String>,
     ) -> Bool {
         guard !names.isEmpty else {
             return false
@@ -442,7 +442,7 @@ public struct MockableMacro: PeerMacro {
     private static func replacedType(
         _ type: TypeSyntax,
         replacements: [String: TypeSyntax],
-        genericNames: Set<String>
+        genericNames: Set<String>,
     ) -> TypeSyntax {
         guard !replacements.isEmpty else {
             return type
@@ -457,7 +457,7 @@ public struct MockableMacro: PeerMacro {
 
     private static func castExpr(
         _ expr: ExprSyntax,
-        to returnType: TypeSyntax?
+        to returnType: TypeSyntax?,
     ) -> ExprSyntax {
         guard let returnType else {
             return expr
@@ -485,7 +485,7 @@ public struct MockableMacro: PeerMacro {
                 AssociatedTypeInfo(
                     name: name,
                     inheritedTypes: associatedType.inheritanceClause?.inheritedTypes,
-                    whereClause: associatedType.genericWhereClause
+                    whereClause: associatedType.genericWhereClause,
                 )
             )
         }
@@ -512,7 +512,7 @@ public struct MockableMacro: PeerMacro {
         return GenericParameterClauseSyntax(
             leftAngle: .leftAngleToken(),
             parameters: parameters,
-            rightAngle: .rightAngleToken()
+            rightAngle: .rightAngleToken(),
         )
     }
 
@@ -532,7 +532,7 @@ public struct MockableMacro: PeerMacro {
                             ConformanceRequirementSyntax(
                                 leftType: leftType,
                                 colon: .colonToken(),
-                                rightType: inheritedType.type
+                                rightType: inheritedType.type,
                             )
                         )
                     )
@@ -565,28 +565,28 @@ public struct MockableMacro: PeerMacro {
 
         return GenericWhereClauseSyntax(
             whereKeyword: .keyword(.where),
-            requirements: requirementList
+            requirements: requirementList,
         )
     }
 
     private static func handlerType(
         params: [ResolvedParam],
         isAsync: Bool,
-        returnType: TypeSyntax
+        returnType: TypeSyntax,
     ) -> TypeSyntax {
         let parameters = handlerTupleTypeElements(from: params)
         let effectSpecifiers =
             isAsync
             ? TypeEffectSpecifiersSyntax(
                 asyncSpecifier: .keyword(.async),
-                throwsClause: nil
+                throwsClause: nil,
             )
             : nil
         let returnClause = ReturnClauseSyntax(type: returnType)
         let functionType = FunctionTypeSyntax(
             parameters: parameters,
             effectSpecifiers: effectSpecifiers,
-            returnClause: returnClause
+            returnClause: returnClause,
         )
         return TypeSyntax(functionType)
     }
@@ -598,7 +598,7 @@ public struct MockableMacro: PeerMacro {
     private static func ifLetStatement(
         bindingName: String,
         value: ExprSyntax,
-        bodyItems: [CodeBlockItemSyntax]
+        bodyItems: [CodeBlockItemSyntax],
     ) -> CodeBlockItemSyntax {
         let condition = OptionalBindingConditionSyntax(
             bindingSpecifier: .keyword(.let),
@@ -671,7 +671,7 @@ public struct MockableMacro: PeerMacro {
                 var element = TupleTypeElementSyntax(
                     firstName: .identifier(param.value),
                     colon: .colonToken(),
-                    type: param.type
+                    type: param.type,
                 )
                 if index < params.count - 1 {
                     element = element.with(\.trailingComma, .commaToken())
@@ -683,7 +683,7 @@ public struct MockableMacro: PeerMacro {
 
     private static func appendReceivedArgumentsStatement(
         receiverName: String,
-        params: [ResolvedParam]
+        params: [ResolvedParam],
     ) -> CodeBlockItemSyntax {
         let tupleElements = receivedArgumentsTupleElements(from: params)
         let tupleExpr = TupleExprSyntax(elements: tupleElements)
@@ -699,7 +699,7 @@ public struct MockableMacro: PeerMacro {
             arguments: LabeledExprListSyntax {
                 LabeledExprSyntax(expression: wrappedTuple)
             },
-            rightParen: .rightParenToken()
+            rightParen: .rightParenToken(),
         )
         return statement(ExpressionStmtSyntax(expression: ExprSyntax(callExpr)))
     }
@@ -724,7 +724,7 @@ public struct MockableMacro: PeerMacro {
                     colon: .colonToken(),
                     expression: ExprSyntax(
                         DeclReferenceExprSyntax(baseName: .identifier(param.value))
-                    )
+                    ),
                 )
                 if index < params.count - 1 {
                     element = element.with(\.trailingComma, .commaToken())
