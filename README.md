@@ -56,7 +56,7 @@ protocol UserRepository {
 ```
 
 ### Stub
-Generate `static func stub(...) -> Self` for a struct.
+Generate `static func stub(...) -> Self` for a struct or enum.
 
 ```swift
 @Stub
