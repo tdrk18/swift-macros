@@ -42,10 +42,11 @@ public struct StubMacro: MemberMacro {
     }
 
     private static func makeEnumStub(enumDecl: EnumDeclSyntax) -> [DeclSyntax] {
-        guard let firstCase = enumDecl.memberBlock.members.lazy
-            .compactMap({ $0.decl.as(EnumCaseDeclSyntax.self) })
-            .flatMap({ $0.elements })
-            .first
+        guard
+            let firstCase = enumDecl.memberBlock.members.lazy
+                .compactMap({ $0.decl.as(EnumCaseDeclSyntax.self) })
+                .flatMap({ $0.elements })
+                .first
         else {
             return []
         }
