@@ -387,4 +387,52 @@ final class StubMacroTests: XCTestCase {
             macros: macros,
         )
     }
+
+    func testStubMacroForEnum() {
+        assertMacroExpansion(
+            """
+            @Stub
+            enum Status {
+                case idle
+                case failed(code: Int, String)
+            }
+            """,
+            expandedSource:
+                """
+                enum Status {
+                    case idle
+                    case failed(code: Int, String)
+
+                    static func stub() -> Self {
+                        .idle
+                    }
+                }
+                """,
+            macros: macros,
+        )
+    }
+
+    func testStubMacroForEnumWithAssociatedValues() {
+        assertMacroExpansion(
+            """
+            @Stub
+            enum Status {
+                case failed(code: Int, String)
+                case idle
+            }
+            """,
+            expandedSource:
+                """
+                enum Status {
+                    case failed(code: Int, String)
+                    case idle
+
+                    static func stub() -> Self {
+                        .failed(code: 0, "")
+                    }
+                }
+                """,
+            macros: macros,
+        )
+    }
 }
